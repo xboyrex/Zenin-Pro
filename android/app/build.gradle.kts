@@ -36,7 +36,7 @@ android {
     buildTypes {
         debug {
             applicationIdSuffix = ".debug"
-            resValue("string", "app_short_name", "Zen'in Pro Debug")
+            resValue("string", "app_short_name", "Zen’in Pro Debug")
         }
         release {
             isMinifyEnabled = false

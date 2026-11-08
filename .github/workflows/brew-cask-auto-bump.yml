@@ -15,9 +15,13 @@ jobs:
       GH_REPO: amir1376/homebrew-tap
 
     steps:
-      - name: Tap homebrew cask repo
+      - name: Tap and trust the required Homebrew cask
+        shell: bash
         run: |
-          brew tap ${{ env.TAP_NAME }}
+          set -euo pipefail
+          brew tap "${{ env.TAP_NAME }}"
+          # Trust only the one cask used by this automation, not the entire tap.
+          brew trust --cask "${{ env.TAP_NAME }}/${{ env.CASK_NAME }}"
 
       - name: Extract version
         id: ver
