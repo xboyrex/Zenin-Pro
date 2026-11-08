@@ -37,10 +37,9 @@ jobs:
       - name: Install Android SDK Platform 37.0 & Build-Tools 36.1.0
         shell: bash
         run: |
-          set -eu
-          # sdkmanager requires license input. Keep the pipeline status from sdkmanager.
-          yes | sdkmanager --licenses >/dev/null
-          set -o pipefail
+          set -euo pipefail
+          # android-actions/setup-android@v4 already accepts SDK licenses.
+          # sdkmanager exits after acceptance and causes `yes` to report Broken pipe.
 
           # compileSdk=37 in gradle/libs.versions.toml.
           # SignApkTask.kt explicitly invokes build-tools/36.1.0/apksigner.
