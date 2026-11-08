@@ -394,7 +394,7 @@ fun BrowserPage(
             }
         }
     ) {
-        if (tabWebViewHolder != null && tab.tabState.lastLoadedUrl != ABDMBrowserTab.blankPage && tab.tabState.lastLoadedUrl != null) {
+        if (tab != null && tabWebViewHolder != null && tab.tabState.lastLoadedUrl != ABDMBrowserTab.blankPage && tab.tabState.lastLoadedUrl != null) {
             ABDMWebView(
                 modifier = Modifier
                     .fillMaxSize()

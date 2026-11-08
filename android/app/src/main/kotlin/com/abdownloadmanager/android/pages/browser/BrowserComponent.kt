@@ -160,7 +160,7 @@ class BrowserComponent(
             AddDownloadConfig.SingleAddConfig(
                 AddDownloadCredentialsInUiProps(
                     credentials = creds,
-                    configs = AddDownloadCredentialsInUiProps.Configs()
+                    extraConfig = AddDownloadCredentialsInUiProps.Configs()
                 )
             ),
             json,

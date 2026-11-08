@@ -191,12 +191,12 @@ class ZeninDnsEngine(
     private fun applyToSharedDnsStorage(cfg: ZeninDnsConfigState) {
         val dohUrl = cfg.effectiveDohUrl()
         if (dohUrl.isBlank() || cfg.preset == DnsProviderPreset.SYSTEM) {
-            dnsSettingsStorage?.dns?.value = DnsSettings(
+            dnsSettingsStorage?.dnsSettingsFlow?.value = DnsSettings(
                 mode = DnsModes.System,
                 address = ""
             )
         } else {
-            dnsSettingsStorage?.dns?.value = DnsSettings(
+            dnsSettingsStorage?.dnsSettingsFlow?.value = DnsSettings(
                 mode = DnsModes.DnsOverHttps,
                 address = dohUrl
             )
