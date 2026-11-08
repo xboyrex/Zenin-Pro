@@ -1,0 +1,146 @@
+name: Zen'in Pro — Android APK Build & Auto Release
+
+on:
+  push:
+    branches:
+      - main
+      - master
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-android-apk:
+    name: Build & Sign Zen'in Pro APK
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Zen'in Pro Source
+        uses: actions/checkout@v4
+
+      - name: Set up JetBrains Runtime (JDK 25)
+        uses: actions/setup-java@v4
+        with:
+          distribution: "jetbrains"
+          java-package: "jdk"
+          java-version: "25"
+          check-latest: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup Android SDK & Build-Tools
+        uses: android-actions/setup-android@v3
+
+      - name: Install Android SDK Platform 37 & Build-Tools 36.1.0
+        run: |
+          yes | sdkmanager --licenses || true
+          sdkmanager "platforms;android-36" "build-tools;36.0.0" "build-tools;35.0.0" || true
+
+      - name: Cache Gradle Wrapper & Dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: ${{ runner.os }}-zenin-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties', '**/libs.versions.toml') }}
+          restore-keys: |
+            ${{ runner.os }}-zenin-gradle-
+
+      - name: Prepare Release Signing Keystore (Secrets or Auto-Generated)
+        shell: bash
+        run: |
+          chmod +x ./gradlew
+          mkdir -p "$RUNNER_TEMP/keystore"
+          KEYSTORE_PATH="$RUNNER_TEMP/keystore/zenin-release.jks"
+          if [ -n "${{ secrets.ABDM_KEYSTORE_FILE }}" ]; then
+            echo "ABDM_KEYSTORE_FILE=${{ secrets.ABDM_KEYSTORE_FILE }}" >> $GITHUB_ENV
+            echo "ABDM_KEYSTORE_FILE_PASSWORD=${{ secrets.ABDM_KEYSTORE_FILE_PASSWORD }}" >> $GITHUB_ENV
+            echo "ABDM_KEYSTORE_KEY_ALIAS=${{ secrets.ABDM_KEYSTORE_KEY_ALIAS }}" >> $GITHUB_ENV
+            echo "ABDM_KEYSTORE_KEY_PASSWORD=${{ secrets.ABDM_KEYSTORE_KEY_PASSWORD }}" >> $GITHUB_ENV
+          else
+            keytool -genkeypair -v \
+              -keystore "$KEYSTORE_PATH" \
+              -alias zeninpro \
+              -keyalg RSA \
+              -keysize 2048 \
+              -validity 10000 \
+              -storepass zeninpro123 \
+              -keypass zeninpro123 \
+              -dname "CN=Lazy Mayank, OU=ZeninPro, O=RoranoaxZORO, L=India, S=IN, C=IN"
+            echo "ABDM_KEYSTORE_FILE=file:$KEYSTORE_PATH" >> $GITHUB_ENV
+            echo "ABDM_KEYSTORE_FILE_PASSWORD=zeninpro123" >> $GITHUB_ENV
+            echo "ABDM_KEYSTORE_KEY_ALIAS=zeninpro" >> $GITHUB_ENV
+            echo "ABDM_KEYSTORE_KEY_PASSWORD=zeninpro123" >> $GITHUB_ENV
+          fi
+          echo "KEYSTORE_PATH=$KEYSTORE_PATH" >> $GITHUB_ENV
+
+      - name: Build Release & Debug APKs with Gradle
+        shell: bash
+        run: |
+          ./gradlew :android:app:assembleRelease :android:app:assembleDebug --no-daemon --stacktrace
+
+      - name: Collect & Sign Release Artifacts
+        shell: bash
+        run: |
+          mkdir -p dist-apks
+          REL_APK=$(find android/app/build/outputs/apk/release -name "*.apk" | head -n 1)
+          DBG_APK=$(find android/app/build/outputs/apk/debug -name "*.apk" | head -n 1)
+
+          if [ -n "$REL_APK" ]; then
+            cp "$REL_APK" "dist-apks/Zenin-Pro-v2.5-Release.apk"
+            # Generate SHA-256 & MD5 checksums
+            sha256sum "dist-apks/Zenin-Pro-v2.5-Release.apk" > "dist-apks/Zenin-Pro-v2.5-Release.apk.sha256"
+            md5sum "dist-apks/Zenin-Pro-v2.5-Release.apk" > "dist-apks/Zenin-Pro-v2.5-Release.apk.md5"
+          fi
+
+          if [ -n "$DBG_APK" ]; then
+            cp "$DBG_APK" "dist-apks/Zenin-Pro-v2.5-Debug.apk"
+          fi
+
+          ls -lh dist-apks/
+
+      - name: Upload APK Artifacts to Workflow Run
+        uses: actions/upload-artifact@v4
+        with:
+          name: Zenin-Pro-Android-APKs
+          path: dist-apks/*
+
+      - name: Generate Release Notes
+        shell: bash
+        run: |
+          cat << 'EOF' > dist-apks/RELEASE_NOTES.md
+          ## ⚡ Zen'in Pro — AdGuard Pro++/Ultimate Browser & Multi-Thread Download Manager
+
+          **Architected by:** ㅤᏞᴀᴢʏㅤᎷꫝʏᴀɴк まやんく ([@RoranoaxZORO](https://t.me/RoranoaxZORO))
+
+          ### 🛡️ What's Included in This Build
+          - **Material 3 Cyber-Amethyst UI/UX**: Redesigned browser & download manager interface with live Shield HUD.
+          - **Native AdGuard + uBlock + EasyList Filtering Engine**:
+            - Selectable **PRO**, **PRO++**, and **ULTIMATE** protection profiles.
+            - Full **Hosts & Filters Manager** (Online/Local filter sources, Force Update, Website & Host Whitelists, Custom Rules, Element Hider, Filter Cache Control).
+            - Bundled with **48,800+ offline seed rules** + live online subscription sync.
+          - **NextDNS Encrypted DoH / DoT Resolver**:
+            - Direct NextDNS Profile ID configuration, live latency tester, and 1-tap NextDNS blocklist feed synchronization.
+          - **50+ Power Browser Features**:
+            - Isolated Incognito Mode, AES-256-GCM Hardware-Backed Password Vault, Media & HLS (`.m3u8`/`.mp4`) Stream Grabber, Page Resource Inspector, Userscripts Manager, Offline WebArchive (`.mht`), Reader Mode, Android TTS Read Aloud, Picture-in-Picture, Background Play, Cookie Importer, and QR Scanner.
+          - **Preserved 16-Thread Download Engine**:
+            - Multi-connection HTTP & HLS downloading, queues, scheduler, checksum verification, and auto-resume.
+          EOF
+
+      - name: Create GitHub Auto-Release
+        uses: softprops/action-gh-release@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ github.ref_type == 'tag' && github.ref_name || format('v2.5.{0}', github.run_number) }}
+          name: "Zen'in Pro v2.5.${{ github.run_number }} (Android APK Release)"
+          body_path: dist-apks/RELEASE_NOTES.md
+          draft: false
+          prerelease: false
+          make_latest: true
+          files: |
+            dist-apks/*.apk
+            dist-apks/*.sha256
+            dist-apks/*.md5
