@@ -71,7 +71,7 @@ jobs:
             exit 1
           }
           API_LEVEL="$(sed -n 's/^AndroidVersion.ApiLevel=//p' \
-            "$SDK_ROOT/platforms/android-37.0/source.properties" | head -n 1 | tr -d '')"
+            "$SDK_ROOT/platforms/android-37.0/source.properties" | head -n 1 | tr -d '\r')"
           if [[ ! "$API_LEVEL" =~ ^37(\.[0-9]+)?$ ]]; then
             echo "Expected Android API level 37; found: ${API_LEVEL:-<missing>}" >&2
             cat "$SDK_ROOT/platforms/android-37.0/source.properties" || true
